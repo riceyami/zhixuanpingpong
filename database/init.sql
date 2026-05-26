@@ -61,11 +61,40 @@ CREATE TABLE IF NOT EXISTS `post` (
     `user_id` BIGINT NOT NULL COMMENT '作者 ID',
     `title` VARCHAR(200) NOT NULL COMMENT '标题',
     `content` TEXT NOT NULL COMMENT '帖子内容 (富文本)',
-    `like_count` INT DEFAULT 0 COMMENT '点赞数',
-    `comment_count` INT DEFAULT 0 COMMENT '评论数',
     `status` TINYINT DEFAULT 1 COMMENT '状态: 0-屏蔽, 1-正常',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '发布时间',
     PRIMARY KEY (`post_id`),
     INDEX `idx_user_post` (`user_id`),
+    INDEX `idx_create_time` (`create_time`),
     CONSTRAINT `fk_post_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='社区帖子表';
+
+-- 6. 评论表
+CREATE TABLE IF NOT EXISTS `comment` (
+    `comment_id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '评论 ID',
+    `post_id` BIGINT NOT NULL COMMENT '所属帖子 ID',
+    `user_id` BIGINT NOT NULL COMMENT '评论者 ID',
+    `parent_id` BIGINT DEFAULT NULL COMMENT '父评论 ID (支持楼中楼)',
+    `content` TEXT NOT NULL COMMENT '评论内容',
+    `status` TINYINT DEFAULT 1 COMMENT '状态: 0-屏蔽, 1-正常',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '评论时间',
+    PRIMARY KEY (`comment_id`),
+    INDEX `idx_post_comment` (`post_id`),
+    INDEX `idx_user_comment` (`user_id`),
+    CONSTRAINT `fk_comment_post` FOREIGN KEY (`post_id`) REFERENCES `post` (`post_id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_comment_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`),
+    CONSTRAINT `fk_comment_parent` FOREIGN KEY (`parent_id`) REFERENCES `comment` (`comment_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='评论表';
+
+-- 7. 帖子点赞表
+CREATE TABLE IF NOT EXISTS `post_like` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '自增主键',
+    `post_id` BIGINT NOT NULL COMMENT '帖子 ID',
+    `user_id` BIGINT NOT NULL COMMENT '点赞用户 ID',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '点赞时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_post_user` (`post_id`, `user_id`),
+    INDEX `idx_post_like` (`post_id`),
+    CONSTRAINT `fk_like_post` FOREIGN KEY (`post_id`) REFERENCES `post` (`post_id`) ON DELETE CASCADE,
+    CONSTRAINT `fk_like_user` FOREIGN KEY (`user_id`) REFERENCES `user` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='帖子点赞表';

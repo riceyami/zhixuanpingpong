@@ -76,3 +76,53 @@ export interface OssPolicyResponse {
   expire: string;
   acl: string;
 }
+
+// --- 社区模块 (M4: Social) ---
+
+export interface Post {
+  postId: number;
+  userId: number;
+  nickname: string;
+  avatar?: string;
+  title: string;
+  content: string;
+  status: number;
+  likeCount: number;
+  commentCount: number;
+  isLiked: boolean;
+  createTime: string;
+}
+
+export interface Comment {
+  commentId: number;
+  postId: number;
+  userId: number;
+  parentId?: number;
+  nickname: string;
+  avatar?: string;
+  content: string;
+  createTime: string;
+}
+
+export interface LikeResult {
+  isLiked: boolean;
+  likeCount: number;
+}
+
+export interface CreatePostRequest {
+  title: string;
+  content: string;
+}
+
+export interface AddCommentRequest {
+  parentId?: number;
+  content: string;
+}
+
+export interface PageResponse<T> {
+  content: T[];
+  totalPages: number;
+  totalElements: number;
+  size: number;
+  number: number;
+}
