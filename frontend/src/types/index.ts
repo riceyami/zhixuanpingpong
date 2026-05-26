@@ -64,3 +64,15 @@ export interface AnalyzeResult {
   hitCount: number;
   analyzeTime: number;
 }
+
+// --- OSS 上传凭证 ---
+
+export interface OssPolicyResponse {
+  accessId: string;
+  policy: string;
+  signature: string;
+  dir: string;
+  host: string;
+  expire: string;
+  acl: string;
+}
