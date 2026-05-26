@@ -21,4 +21,11 @@ public interface UserService {
      * @return 包含 Token 的登录响应
      */
     com.zhuxuan.dto.LoginResponse login(com.zhuxuan.dto.LoginRequest request);
+
+    /**
+     * 刷新 Token
+     * @param refreshToken 旧的刷新令牌
+     * @return 新的令牌对
+     */
+    com.zhuxuan.dto.LoginResponse refreshToken(String refreshToken);
 }

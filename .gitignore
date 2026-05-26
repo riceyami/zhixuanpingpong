@@ -1,0 +1,43 @@
+# Java
+**/target/
+**/*.class
+**/*.jar
+**/*.war
+**/*.ear
+**/*.log
+.mtj.tmp/
+*.swp
+*.lock
+
+# Spring Boot
+**/src/main/resources/application-dev.properties
+**/src/main/resources/application-local.properties
+
+# Node / Next.js
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/.env*.local
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Python
+backend-python/venv/
+backend-python/__pycache__/
+backend-python/*.py[cod]
+backend-python/.env
+
+# IDE
+.vscode/
+.idea/
+*.iml
+*.iws
+.project
+.settings
+.classpath
+.DS_Store
+
+# Logs
+logs/
+*.log

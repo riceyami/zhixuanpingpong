@@ -27,7 +27,12 @@
 - **入参**: `{ "type": "phone|email", "phone": "", "code": "", "password": "" }`
 - **出参**: `{ "accessToken": "", "refreshToken": "", "userInfo": {} }`
 
-### 2.2 获取个人资料
+### 2.2 刷新 Token
+- **路径**: `POST /api/user/refresh`
+- **入参**: `{ "refreshToken": "" }`
+- **出参**: `{ "accessToken": "", "refreshToken": "" }`
+
+### 2.3 获取个人资料
 - **路径**: `GET /api/user/profile`
 - **鉴权**: 必须
 - **出参**: 包含用户基础信息与 `racketConfig`。

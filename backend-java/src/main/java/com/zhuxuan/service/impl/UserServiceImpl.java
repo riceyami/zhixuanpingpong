@@ -8,6 +8,7 @@ import com.zhuxuan.entity.User;
 import com.zhuxuan.repository.UserRepository;
 import com.zhuxuan.service.UserService;
 import com.zhuxuan.util.JwtUtils;
+import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -81,6 +82,25 @@ public class UserServiceImpl implements UserService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .userInfo(userResponse)
+                .build();
+    }
+
+    @Override
+    public LoginResponse refreshToken(String refreshToken) {
+        if (!jwtUtils.validateToken(refreshToken)) {
+            throw new RuntimeException("RefreshToken 已过期或无效，请重新登录");
+        }
+
+        Long userId = jwtUtils.getUserId(refreshToken);
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("用户不存在"));
+
+        String newAccessToken = jwtUtils.generateAccessToken(user.getUserId(), String.valueOf(user.getRole()));
+        String newRefreshToken = jwtUtils.generateRefreshToken(user.getUserId());
+
+        return LoginResponse.builder()
+                .accessToken(newAccessToken)
+                .refreshToken(newRefreshToken)
                 .build();
     }
 }

@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.Map;
+
 /**
  * 认证授权控制器
  */
@@ -40,6 +42,20 @@ public class AuthController {
         try {
             LoginResponse response = userService.login(request);
             return Result.success("登录成功", response);
+        } catch (RuntimeException e) {
+            return Result.error(401, e.getMessage());
+        }
+    }
+
+    /**
+     * 刷新 Token
+     */
+    @PostMapping("/refresh")
+    public Result<LoginResponse> refresh(@RequestBody Map<String, String> body) {
+        try {
+            String refreshToken = body.get("refreshToken");
+            LoginResponse response = userService.refreshToken(refreshToken);
+            return Result.success("刷新成功", response);
         } catch (RuntimeException e) {
             return Result.error(401, e.getMessage());
         }
