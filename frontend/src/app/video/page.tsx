@@ -1,21 +1,29 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Upload, Button, Card, Table, Tag, message, Space, Typography, Modal } from 'antd';
-import { InboxOutlined, PlayCircleOutlined, DeleteOutlined } from '@ant-design/icons';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Upload, Button, Card, Table, Tag, message, Space, Typography, Modal, Descriptions, Statistic, Row, Col, Spin } from 'antd';
+import { InboxOutlined, PlayCircleOutlined, DeleteOutlined, BarChartOutlined, ThunderboltOutlined } from '@ant-design/icons';
 import api from '@/services/api';
-import type { Video, OssPolicyResponse } from '@/types';
+import type { Video, OssPolicyResponse, AnalyzeResult } from '@/types';
+import TableCourt from '@/components/TableCourt';
 import axios from 'axios';
 
 const { Dragger } = Upload;
 const { Title } = Typography;
 
+const POLL_INTERVAL = 2000;
+
 const VideoPage = () => {
   const [videos, setVideos] = useState<Video[]>([]);
   const [loading, setLoading] = useState(false);
+  const [analyzeResult, setAnalyzeResult] = useState<AnalyzeResult | null>(null);
+  const [analyzeLoading, setAnalyzeLoading] = useState(false);
+  const [analyzeModalVisible, setAnalyzeModalVisible] = useState(false);
+  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
+  const [analyzingId, setAnalyzingId] = useState<string | null>(null);
+  const pollingRef = useRef<NodeJS.Timeout | null>(null);
 
-  // 获取视频列表
-  const fetchVideos = async () => {
+  const fetchVideos = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get('/api/video/list');
@@ -25,11 +33,57 @@ const VideoPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchVideos();
+    return () => {
+      if (pollingRef.current) {
+        clearInterval(pollingRef.current);
+      }
+    };
+  }, [fetchVideos]);
+
+  const stopPolling = useCallback(() => {
+    if (pollingRef.current) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
   }, []);
+
+  // 提交 AI 分析（异步：提交后立即刷新列表，轮询完成状态）
+  const handleStartAnalysis = async (videoId: string) => {
+    setAnalyzingId(videoId);
+    try {
+      await api.post('/api/video/analyze', { videoId });
+      message.loading({ content: '分析中，请稍候...', key: 'analysis', duration: 0 });
+      await fetchVideos();
+      pollingRef.current = setInterval(async () => {
+        try {
+          const res = await api.get('/api/video/list');
+          const updated = res.data.data as Video[];
+          setVideos(updated);
+          const target = updated.find((v) => v.videoId === videoId);
+          if (target && target.status >= 3) {
+            stopPolling();
+            setAnalyzingId(null);
+            if (target.status === 3) {
+              message.success({ content: '分析完成', key: 'analysis' });
+            } else {
+              message.error({ content: '分析失败', key: 'analysis' });
+            }
+          }
+        } catch {
+          stopPolling();
+          setAnalyzingId(null);
+          message.error({ content: '轮询状态失败', key: 'analysis' });
+        }
+      }, POLL_INTERVAL);
+    } catch (err: any) {
+      setAnalyzingId(null);
+      message.error('提交分析失败: ' + (err.response?.data?.message || err.message));
+    }
+  };
 
   // 删除视频
   const handleDelete = async (videoId: string) => {
@@ -41,6 +95,23 @@ const VideoPage = () => {
       message.error('删除失败: ' + (err.response?.data?.message || err.message));
     }
   };
+
+  // 查看分析结果
+  const handleViewAnalysis = async (video: Video) => {
+    setSelectedVideo(video);
+    setAnalyzeModalVisible(true);
+    setAnalyzeLoading(true);
+    setAnalyzeResult(null);
+    try {
+      const res = await api.get(`/api/video/result/${video.videoId}`);
+      setAnalyzeResult(res.data.data);
+    } catch (err: any) {
+      message.error('获取分析结果失败: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setAnalyzeLoading(false);
+    }
+  };
+
   const customRequest = async (options: any) => {
     const { file, onSuccess, onError, onProgress } = options;
     
@@ -135,6 +206,24 @@ const VideoPage = () => {
           >
             播放
           </Button>
+          {record.status === 1 && (
+            <Button
+              type="link"
+              icon={<ThunderboltOutlined />}
+              loading={analyzingId === record.videoId}
+              onClick={() => handleStartAnalysis(record.videoId)}
+            >
+              开始分析
+            </Button>
+          )}
+          <Button
+            type="link"
+            icon={<BarChartOutlined />}
+            disabled={record.status < 3}
+            onClick={() => handleViewAnalysis(record)}
+          >
+            查看分析
+          </Button>
           <Button type="link" danger icon={<DeleteOutlined />} onClick={() => {
             Modal.confirm({
               title: '确认删除',
@@ -177,6 +266,64 @@ const VideoPage = () => {
           loading={loading}
         />
       </Card>
+
+      {/* 分析结果弹窗 - 方案A：直接绘制落点图 */}
+      <Modal
+        title={selectedVideo ? `分析结果 - ${selectedVideo.videoId.slice(0, 8)}...` : '分析结果'}
+        open={analyzeModalVisible}
+        onCancel={() => setAnalyzeModalVisible(false)}
+        footer={null}
+        width={800}
+        destroyOnClose
+      >
+        <Spin spinning={analyzeLoading} tip="加载分析结果...">
+          {analyzeResult && (
+            <div className="py-4">
+              {/* 核心指标 */}
+              <Row gutter={[16, 16]} className="mb-6">
+                <Col span={6}>
+                  <Card size="small" className="text-center">
+                    <Statistic title="击球次数" value={analyzeResult.hitCount} suffix="次" />
+                  </Card>
+                </Col>
+                <Col span={6}>
+                  <Card size="small" className="text-center">
+                    <Statistic title="平均球速" value={analyzeResult.ballSpeed.avg} suffix="m/s" precision={1} />
+                  </Card>
+                </Col>
+                <Col span={6}>
+                  <Card size="small" className="text-center">
+                    <Statistic title="最高球速" value={analyzeResult.ballSpeed.max} suffix="m/s" precision={1} />
+                  </Card>
+                </Col>
+                <Col span={6}>
+                  <Card size="small" className="text-center">
+                    <Statistic title="分析耗时" value={analyzeResult.analyzeTime / 1000} suffix="s" precision={1} />
+                  </Card>
+                </Col>
+              </Row>
+
+              {/* 落点图 */}
+              <div className="flex justify-center mb-6">
+                <TableCourt landingPoints={analyzeResult.landingPoints} width={520} />
+              </div>
+
+              {/* 轨迹与速度详情 */}
+              <Descriptions title="球速明细" column={1} size="small" bordered>
+                <Descriptions.Item label="速度序列 (m/s)">
+                  <div className="flex flex-wrap gap-1">
+                    {analyzeResult.ballSpeed.sequence.map((s, i) => (
+                      <Tag key={i} color={s >= analyzeResult.ballSpeed.avg ? '#ef4444' : '#3b82f6'}>
+                        {s.toFixed(1)}
+                      </Tag>
+                    ))}
+                  </div>
+                </Descriptions.Item>
+              </Descriptions>
+            </div>
+          )}
+        </Spin>
+      </Modal>
     </div>
   );
 };

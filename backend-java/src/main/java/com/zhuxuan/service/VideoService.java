@@ -1,5 +1,6 @@
 package com.zhuxuan.service;
 
+import com.zhuxuan.dto.AnalyzeResult;
 import com.zhuxuan.dto.OssPolicyResponse;
 import com.zhuxuan.entity.Video;
 
@@ -25,4 +26,14 @@ public interface VideoService {
      * 删除视频 (从 OSS 和数据库中删除)
      */
     void deleteVideo(String videoId, Long userId);
+
+    /**
+     * 获取视频 AI 分析结果
+     */
+    AnalyzeResult getAnalyzeResult(String videoId, Long userId);
+
+    /**
+     * 标记视频为分析中状态（异步任务触发前同步执行）
+     */
+    void startAnalysis(String videoId, Long userId);
 }
