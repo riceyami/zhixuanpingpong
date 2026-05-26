@@ -1,0 +1,482 @@
+
+
+
+
+
+
+智旋——乒乓球训练数据可视化与成长记录系统
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+目 录 
+系统概述 
+总体结构设计
+模块详细设计
+数据库与数据结构设计 
+接口设计 
+安全设计
+高可用与容错设计
+性能优化设计 
+部署与依赖说明 
+附录（架构图、数据表、接口示例、异常码表） 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ 
+一、系统概述 
+1.1 系统简介 
+系统名称：乒乓球训练数据分析与社交平台（Web端） 
+项目名称：智旋 
+系统采用B/S架构、前后端分离设计，面向乒乓球爱好者提供视频上传、AI训练分析、数据可视化Dashboard、社交社区、LBS附近约球五大核心功能，实现训练数据沉淀、成长追踪、线上交流、线下约球匹配。 
+1.2 系统目标 
+功能目标： 
+1.实现用户认证、视频分析、数据看板、社交互动、LBS定位五大模块完整功能 
+2.支持AI轨迹识别、球速/落点分析、训练报告导出、训练打卡与排行榜 
+3.支持问答社区、私信、点赞关注、附近球友/球馆查询 
+性能目标： 
+1.首屏LCP≤2.5秒，核心交互FID≤100ms 
+视频分析时长≤原视频1/2，轨迹识别准确率≥85% 
+支持1000+用户在线，100路视频并发上传 
+质量目标： 
+1.响应式布局，移动端/PC端自适应，支持PWA 
+2.数据加密存储，接口防攻击、防爬虫、防注入 
+1.3 运行环境 
+客户端： 
+浏览器：Chrome90+、Firefox88+、Safari14+、Edge90+ 
+系统：Windows10/11、macOS12+、iOS16+、Android10+ 
+服务端： 
+应用：SpringBoot3.x、FastAPI(Python) 
+数据库：MySQL8.0、MongoDB、Redis 
+存储：阿里云OSS、CDN 
+AI分析：GPU服务器、OpenCV+TensorFlow 
+网络： 
+协议：HTTPS、WSS、RESTful API、HLS 最低带宽：下行≥5Mbps(4G及以上)
+1.4 开发环境 
+前端：React18、Next.js14、TypeScript5.x、AntDesign5、TailwindCSS3、Vite5 
+后端：Java、SpringBoot3.x；Python、FastAPI 
+数据库：MySQL8.0、MongoDB、Redis 
+工具：Git+GitHub、Trello/飞书、Draw.io、Figma/墨刀、PowerDesigner
+AI辅助：豆包、通义千问、文心一言 
+二、总体结构设计 
+2.1软件架构（五层架构）
+前端展示层：Web/PWA、响应式页面、SSR/SSG优化 
+API网关层：路由转发、权限校验、限流、日志 
+业务服务层：用户服务、视频服务、数据分析服务、社交服务、LBS服务
+数据持久层：MySQL、MongoDB、Redis、OSS 
+AI能力层：视频解析、轨迹识别、球速/落点分析 
+2.2系统架构图
+ 
+2.3设计思想 
+前后端分离：前端专注交互，后端专注业务与数据 
+模块化低耦合：功能独立拆分，便于迭代、测试、部署 
+高可用可扩展：缓存、异步、分片上传、服务降级 
+移动端优先：响应式布局，全端适配 
+5.安全合规：加密、鉴权、防XSS/CSRF、文件安全校验 
+三、模块详细设计 
+3.1 模块1：用户认证与权限管理模块 
+3.1.1 功能描述 
+1. 提供多方式登录：手机号验证码、微信扫码、邮箱密码登录。 
+2. 用户注册、信息编辑、头像上传与裁剪、球拍器材配置。 
+3. 登录态管理：记住我、Token 刷新、自动登出、账号锁定。 
+4. 权限控制：普通用户/教练员/管理员三级权限区分。 
+5. 安全防护：图形验证码、IP 限流、防暴力破解。
+功能流程： 用户访问 → 选择登录方式 → 验证身份 → 颁发 Token → 权限校验 → 进入系统 → 资料管理/器材配置 → 登出销毁 Token 
+3.1.2 接口描述 
+1. 用户注册接口 
+输入：手机号/邮箱、密码、验证码、昵称 
+输出：注册结果、用户ID、初始 Token  
+异常：账号已存在、验证码错误、密码强度不足 
+用户登录接口
+输入：账号、密码/验证码、登录类型 
+输出：AccessToken、RefreshToken、用户信息 
+异常：账号锁定、密码错误、请求频繁 
+获取用户信息接口 
+输入：Token - 
+输出：用户基本资料、头像、器材配置、权限等级  
+异常：Token 过期、无效凭证 
+头像上传接口
+输入：图片文件、裁剪坐标  
+输出：头像 URL  
+异常：格式不支持、文件超 2MB、上传失败 
+退出登录接口 
+输入：Token  
+输出：登出成功 
+异常：Token 无效  
+3.1.3 数据结构描述
+用户对象 User：
+userId：用户唯一标识
+phone：手机号
+email：邮箱
+password：加密存储密码
+nickname：昵称
+avatar：头像地址
+racketConfig：器材配置信息
+role：用户角色
+status：账号状态
+createTime：创建时间
+updateTime：更新时间
+登录凭证 TokenInfo：
+accessToken：访问令牌
+refreshToken：刷新令牌
+expire：过期时间
+userId：用户标识
+器材配置 RacketConfig：
+baseplate：底板信息
+rubberForehand：正手胶皮
+rubberBackhand：反手胶皮
+3.1.4 实现思路
+采用 JWT 无状态认证，刷新令牌存入 HttpOnly Cookie 保证安全；登录失败次数超限触发 IP 限流；前端使用 React 与 TypeScript 构建表单，通过裁剪组件实现头像编辑；后端使用 Spring Security 做统一权限拦截，密码采用 BCrypt 加密；用户信息存入 MySQL，令牌与限流数据存入 Redis 提升效率。
+3.1.5 其他
+运行形式：独立微服务 UserService，以后端 API 服务形式运行。
+人机交互界面：登录页面、注册页面、个人设置页面、资料编辑页面、器材配置页面。
+设计原则：界面简洁、校验实时、提示清晰、全端适配。
+3.2 模块 2：视频上传与 AI 分析模块
+3.2.1 功能描述
+支持视频拖拽上传、文件夹上传、分片上传、断点续传与进度展示；完成视频格式校验、封面生成、前端压缩；提交 AI 分析任务，返回乒乓球轨迹、球速、落点、击球次数；提供自定义播放器，支持倍速、逐帧、轨迹叠加、全屏与快捷键操作。
+3.2.2 接口描述
+1. 获取上传凭证接口
+输入：用户 ID
+输出：OSS 上传授权信息
+异常处理：无权限、参数错误
+上传完成回调接口
+输入：视频 ID、文件信息
+输出：分析任务 ID
+异常处理：文件非法、存储失败
+提交分析任务接口
+输入：视频 ID
+输出：任务执行状态
+异常处理：服务繁忙、分析中
+查询分析结果接口
+输入：视频 ID / 任务 ID
+输出：轨迹数据、统计结果
+异常处理：未分析、分析失败
+视频播放接口
+输入：视频 ID
+输出：播放地址、封面、分析数据
+异常处理：视频不存在
+3.2.3 数据结构描述
+视频信息 VideoInfo：
+videoId：视频标识
+userId：用户标识
+fileName：文件名
+fileUrl：文件地址
+coverUrl：封面地址
+duration：时长
+format：格式
+status：状态
+createTime：上传时间
+分析任务 AnalyzeTask：
+taskId：任务标识
+videoId：视频标识
+status：任务状态
+progress：进度
+resultId：结果标识
+分析结果 AnalyzeResult：
+resultId：结果标识
+videoId：视频标识
+trackData：轨迹数据
+ballSpeed：球速
+landingPoints：落点数据
+hitCount：击球次数
+analyzeTime：分析耗时
+3.2.4 实现思路
+前端使用阿里云 OSS SDK 实现分片上传，支持断点续传；上传完成后回调后端服务，异步提交 AI 分析任务；AI 服务基于 FastAPI、OpenCV 与 TensorFlow 实现帧级轨迹提取；播放器基于 Video.js 二次开发，叠加可视化轨迹图层；分析结果存入 MongoDB 便于非结构化数据存储。
+3.2.5 其他
+运行形式：视频服务 VideoService + AI 分析微服务 CVService。
+人机交互界面：视频上传页面、分析中页面、播放分析页面。
+设计原则：上传直观、进度明确、弱网兼容、服务友好降级。
+3.3 模块 3：数据可视化与训练报告模块
+3.3.1 功能描述
+提供训练数据 Dashboard 看板，展示训练时长、次数、排行榜；支持 3D 球路、落点热力图、趋势图表展示，支持按日 / 周 / 月数据下钻；实现训练日历、数据补录、打卡统计；支持 PDF 训练报告导出。
+3.3.2 接口描述
+1. 获取训练统计接口
+输入：用户 ID、日期
+输出：当日 / 周 / 月训练统计数据
+异常处理：无数据、参数错误
+获取图表数据接口
+输入：视频 ID / 结果 ID
+输出：轨迹、点位、统计图表数据
+异常处理：数据不存在
+训练数据补录接口
+输入：用户 ID、日期、时长、次数
+输出：保存结果
+异常处理：日期重复、数据非法
+导出 PDF 报告接口
+输入：用户 ID、日期范围
+输出：PDF 文件
+异常处理：导出失败、无数据
+3.3.3 数据结构描述
+训练统计 TrainingStat：
+statId：统计标识
+userId：用户标识
+trainDate：训练日期
+totalDuration：总时长
+trainTimes：训练次数
+checkin：打卡状态
+createTime：创建时间
+图表数据 ChartData：
+xAxis：时间轴
+yAxis：数值轴
+series：数据序列
+报告信息 ReportInfo：
+userInfo：用户信息
+trainSummary：训练汇总
+chartList：图表列表
+suggestion：建议
+3.3.4 实现思路
+前端使用 ECharts 实现图表渲染，支持窗口自适应；后端按日期聚合训练数据，热点数据使用 Redis 缓存；数据更新通过 WebSocket 实时推送；PDF 报告采用前端 html2canvas+jsPDF 生成，保证导出速度与兼容性。
+3.3.5 其他
+运行形式：数据分析服务 StatService。
+人机交互界面：数据看板、训练日历、报告预览页。
+设计原则：图表清晰、操作简洁、支持导出、响应式布局。
+3.4 模块 4：社交互动模块
+3.4.1 功能描述
+支持发帖、评论、点赞、关注、@用户、富文本编辑；提供实时通知、私信即时通讯、消息已读未读状态；实现训练打卡、日 / 周 / 月排行榜；长列表采用虚拟滚动优化性能。
+3.4.2 接口描述
+1. 发帖 / 删帖接口
+输入：用户信息、标题、内容、图片
+输出：帖子标识
+异常处理：内容违规、发布失败
+评论 / 点赞接口
+输入：目标 ID、操作类型
+输出：操作后状态
+异常处理：目标不存在、重复操作
+发送私信接口
+输入：目标用户 ID、消息内容
+输出：消息标识、发送状态
+异常处理：发送失败、对方拒收
+获取通知接口
+输入：用户 ID
+输出：未读 / 已读通知列表
+异常处理：无权限
+3.4.3 数据结构描述
+帖子 Post：
+postId：帖子标识
+userId：作者标识
+title：标题
+content：内容
+likeCount：点赞数
+commentCount：评论数
+status：状态
+createTime：发布时间
+消息 Message：
+msgId：消息标识
+fromUid：发送方
+toUid：接收方
+content：内容
+status：已读状态
+createTime：发送时间
+排行榜 Ranking：
+rank：排名
+userId：用户标识
+nickname：昵称
+duration：训练时长
+avatar：头像
+3.4.4 实现思路
+富文本编辑器使用 react-quill，支持图片与视频插入；私信与通知基于 Socket.IO 实现长连接；列表采用 react-window 虚拟滚动提升性能；点赞、关注、计数使用 Redis 做缓存，减轻数据库压力。
+3.4.5 其他
+运行形式：社交服务 SocialService + WebSocket 实时服务。
+人机交互界面：社区首页、帖子详情、私信页面、排行榜页面。
+设计原则：滚动流畅、实时提示、交互无刷新、界面简洁。
+3.5 模块 5：LBS 地理位置与约球模块
+3.5.1 功能描述
+支持自动定位、手动选点，坐标模糊化保护隐私；展示附近球友、球馆，支持距离计算；提供约球发布、报名、取消功能，支持地图 / 列表双视图；实现地图点聚合展示。
+3.5.2 接口描述
+1. 获取定位接口
+输入：定位权限状态
+输出：模糊处理后经纬度、地址
+异常处理：定位失败、权限拒绝
+附近球友 / 球馆接口
+输入：经纬度、搜索半径
+输出：附近用户、球馆列表
+异常处理：无结果、参数错误
+发布约球接口
+输入：地点、时间、人数、描述
+输出：约球活动标识
+异常处理：信息不完整、发布失败
+报名约球接口
+输入：活动 ID、用户 ID
+输出：报名状态
+异常处理：活动已满、已取消
+3.5.3 数据结构描述
+位置信息 Location：
+longitude：经度
+latitude：纬度
+address：详细地址
+city：城市
+附近用户 NearbyUser：
+userId：用户标识
+nickname：昵称
+avatar：头像
+distance：距离
+status：在线状态
+约球信息 Match：
+matchId：活动标识
+userId：发起人标识
+title：标题
+address：地点
+location：经纬度
+startTime：开始时间
+maxUsers：最大人数
+status：活动状态
+createTime：创建时间
+3.5.4 实现思路
+前端调用高德地图 JS API 获取定位，定位失败降级为 IP 定位；经纬度前端随机偏移 50-100 米保护隐私；距离使用 Haversine 公式计算；后端按地理位置范围查询数据库，支持分页与筛选。
+3.5.5 其他
+运行形式：LBS 服务 LocationService。
+人机交互界面：地图页面、附近列表页、约球发布页。
+设计原则：权限友好、定位省电、失败可手动输入、双视图切换。
+四、数据库与数据结构设计 
+数据库选型 
+MySQL8.0：结构化业务数据（用户、训练、社交、约球） 
+MongoDB：视频元数据、分析结果、富文本 
+Redis：缓存、会话、Token、限流、排行榜、实时消息 
+阿里云OSS：视频、图片、封面、PDF 
+核心数据表（完整字段）  
+用户表user 
+
+训练视频表video 
+
+分析结果表 analysis_result 
+  
+训练统计表training_stat 
+ 
+社区帖子表post 
+ 
+约球表match_apply 
+ 
+MongoDB集合 
+video_meta：视频分片信息、分析中间状态 
+user_behavior：用户行为日志、离线数据 
+Redis键设计 
+user:token:{token} → 用户信息 
+video:upload:{taskId} → 上传进度 
+limit:ip:{ip} → 限流计数 
+ranking:daily → 日排行榜 
+五、接口设计 
+5.1 接口规范 
+协议：HTTPS 
+请求方式：GET/POST/PUT/DELETE 
+数据格式：JSON(UTF-8) 
+鉴权：Header携带Authorization:Bearer {Token} 
+通用返回：code、message、data、timestamp 
+5.2 接口示例
+示例1：用户登录 
+接口：POST /api/user/login 
+请求体： 
+{ 
+"type":"phone",
+"phone":"13800138000", 
+"code":"123456" 
+} 
+响应体： 
+{ 
+"code":200, 
+"message":"登录成功", 
+"data":{ 
+"token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9", 
+"user_id":10001, 
+"nickname":"乒乓爱好者" 
+},
+ "timestamp":1742726400000 
+}  
+示例2：获取上传凭证 
+接口：GET /api/video/upload/token 
+响应： 
+{
+"code":200, 
+"message":"success", 
+"data":{ 
+"upload_id":"upload_123456", 
+"oss_url":"https://xxx.aliyuncs.com", 
+"policy":"xxx", 
+"signature":"xxx"
+} 
+} 
+示例3：获取训练统计 
+接口：GET /api/stat/training?user_id=10001&date=2026-03-24 
+响应： 
+{ 
+"code":200, 
+"message":"success", 
+"data":{ 
+"train_date":"2026-03-24", 
+"total_duration":1800, 
+"train_times":6, 
+"checkin":1 
+} 
+} 
+5.3 外部接口
+
+5.4 内部接口
+
+六、安全设计 
+XSS防护：DOMPurify、CSP、React自动转义 
+CSRF防护：SameSite=Strict、双重Cookie 
+点击劫持：X-Frame-Options:DENY 
+文件安全：MIME白名单、Magic Number、病毒扫描 
+密码：BCrypt加密 
+敏感数据：AES-256加密存储 
+接口：IP限流、5次失败锁定、HTTPS/TLS1.3、HSTS 
+隐私：定位模糊化、数据脱敏、一键注销  
+七、高可用与容错设计 
+前端：ErrorBoundary、ServiceWorker离线、自动重试 
+上传：分片、断点续传、失败重传 
+实时通信：WebSocket自动重连(指数退避) 
+服务降级：地图失败→列表、分析繁忙→排队、弱网→基础功能 
+后端：限流、异步、主从切换、故障隔离 
+八、性能优化设计 
+前端：SSR/SSG、懒加载、压缩、缓存 
+后端：Redis缓存、索引优化、批量查询 
+媒体：CDN、HLS、首帧预加载 
+列表：虚拟滚动、无限滚动 
+九、部署与依赖说明 
+9.1 依赖关系 
+用户模块→所有模块依赖 
+视频模块→用户+OSS+AI 
+数据模块→视频+分析结果 
+社交模块→用户 
+LBS模块→用户+地图 
+9.2 部署顺序 
+1.MySQL/MongoDB/Redis 
+2.微服务（用户/视频/分析/社交/LBS） 
+3.前端构建部署 
+4.OSS/CDN配置 
+5.测试上线 
+9.3 里程碑 
+开发环境部署：4月13日 
+模块划分完成：5月3日 
+全部功能完成：5月16日 
+文档与测试完成：5月23日 
+十、附录 
+附录：异常码表 
+ 

@@ -1,0 +1,400 @@
+智旋系统详细设计
+1 系统概述
+1.1 系统简介
+系统名称：乒乓球训练数据分析与社交平台（Web端）
+项目名称：智旋
+系统采用B/S架构、前后端分离设计，面向乒乓球爱好者提供视频上传、AI训练分析、数据可视化Dashboard、社交社区、LBS附近约球五大核心功能，实现训练数据沉淀、成长追踪、线上交流、线下约球匹配。
+1.2 术语表
+1.3 系统运行环境
+客户端
+浏览器：Chrome90+、Firefox88+、Safari14+、Edge90+
+操作系统：Windows10/11、macOS12+、iOS16+、Android10+
+网络：下行≥5Mbps（4G及以上）
+服务端
+应用：SpringBoot3.x、FastAPI(Python)
+数据库：MySQL8.0、MongoDB、Redis
+存储：阿里云OSS、CDN
+AI分析：GPU服务器、OpenCV+TensorFlow
+网络协议：HTTPS、WSS、RESTful API、HLS
+1.4 开发环境
+前端：React18、Next.js14、TypeScript5.x、AntDesign5、TailwindCSS3、Vite5
+后端：Java、SpringBoot3.x；Python、FastAPI
+数据库：MySQL8.0、MongoDB、Redis
+工具：Git+GitHub、Trello/飞书、[Draw.io](Draw.io)、Figma/墨刀、PowerDesigner
+AI辅助：豆包、通义千问、文心一言、DeepSeek
+
+2 数据结构说明
+2.1 常量
+文件存储常量：OSS上传分片大小5MB、单视频最大500MB、头像最大2MB
+时间常量：Token过期时间（AccessToken2小时、RefreshToken30天）、WebSocket心跳30秒
+业务常量：登录失败5次锁定、定位偏移50-100米、AI分析准确率≥85%
+2.2 变量
+全局变量：用户ID、当前定位经纬度、视频上传进度、分析任务状态
+局部变量：模块内表单数据、图表筛选条件、约球搜索半径
+2.3 数据结构
+用户对象User：userId、phone、email、password、nickname、avatar、racketConfig、role、status
+视频信息VideoInfo：videoId、userId、fileUrl、coverUrl、duration、status、createTime
+分析结果AnalyzeResult：resultId、videoId、trackData、ballSpeed、landingPoints、hitCount
+训练统计TrainingStat：statId、userId、trainDate、totalDuration、trainTimes、checkin
+约球信息Match：matchId、userId、address、location、startTime、maxUsers、status
+
+3 模块设计
+3.1 网站结构
+
+3.2 功能设计说明
+前后端分离：前端专注交互，后端专注业务与数据
+模块化低耦合：功能独立拆分，便于迭代、测试、部署
+高可用可扩展：缓存、异步、分片上传、服务降级
+移动端优先：响应式布局，全端适配
+安全合规：加密、鉴权、防XSS/CSRF、文件安全校验
+3.3 模块1：用户认证与权限管理模块
+3.3.1、设计图
+
+模块架构： 登录注册页 → 个人中心 → 器材配置页 → 权限管理页
+业务流程： 用户访问 → 登录验证 → Token颁发 → 权限校验 → 功能访问 → 登出销毁
+3.3.2、功能描述
+为用户提供多方式登录注册、个人信息管理、头像上传裁剪、球拍器材配置、登录态维护与三级权限（普通用户/教练员/管理员）控制功能，保障系统访问安全与身份识别。
+3.3.3、输入数据
+用户输入数据与有效性检验：
+手机号：11位数字，正则^1[3-9]\d{9}$，非空校验
+验证码：6位数字，有效期5分钟，1小时内最多获取5次
+密码：8-20位，包含大小写字母、数字、特殊字符，非空
+昵称：2-16字符，不允许特殊符号，非空
+头像文件：JPG/PNG格式，大小≤2MB，前端裁剪后上传
+器材配置：底板、正手胶皮、反手胶皮，下拉选择，非空
+数据来源表：
+用户表user：根据手机号/邮箱/用户ID查询用户信息
+登录日志表login_log：根据用户ID查询登录记录
+权限表role_permission：根据角色ID查询权限列表
+3.3.4、输出数据
+用户基础信息： 用户ID、昵称、头像URL、脱敏手机号
+认证凭证： AccessToken（有效期2小时）、RefreshToken（有效期30天）
+权限标识： 角色码、权限菜单列表
+操作反馈： 登录/注册/修改成功/失败提示信息
+表现形式： 页面渲染、弹窗提示、Token存入Cookie/请求头
+3.3.5、数据设计
+局部数据结构：
+相关数据库表：
+user：userId, phone, email, password, nickname, avatar, racketConfig, role, status
+token_info：tokenId, userId, accessToken, refreshToken, expireTime
+数据存储设计：
+头像文件：avatar/{userId}_{timestamp}.jpg，存储至阿里云OSS，格式JPG/PNG。
+3.3.6、算法和流程
+用户进入登录页面，选择登录方式
+输入账号与凭证，前端完成格式校验
+调用登录接口，后端校验账号密码/验证码
+校验通过，生成JWT Token，RefreshToken存入HttpOnly Cookie
+进行权限校验，返回用户信息与权限列表
+前端存储Token，跳转至首页
+登出时清除本地Token，调用登出接口销毁会话
+3.3.7、函数说明
+verifyUser：验证用户身份
+所在文件：userService.js
+参数：phone, code, email, password
+返回值：用户信息/错误码
+generateToken：生成认证Token
+所在文件：tokenUtil.js
+参数：userId, role
+返回值：AccessToken、RefreshToken
+validateToken：校验Token有效性
+所在文件：authInterceptor.js
+参数：token
+返回值：校验结果、用户ID
+checkRole：校验用户权限
+所在文件：permissionService.js
+参数：userId, permissionCode
+返回值：是否具备权限
+uploadAvatar：上传并裁剪头像
+所在文件：fileService.js
+参数：file, cropData
+返回值：头像URL
+3.3.8、全局数据结构与该模块的关系
+全局用户对象currentUser：存储当前登录用户ID、昵称、角色、头像
+全局权限集合permissionList：控制页面按钮与菜单显示
+全局Token：用于所有接口请求鉴权
+关联全局定位、视频上传、社交互动等模块的权限访问控制
+3.4 模块2：视频上传与AI分析模块
+3.4.1、设计图
+
+流程： 上传视频 → 分片上传 → OSS存储 → AI分析 → 结果返回 → 播放器渲染
+3.4.2、功能描述
+支持视频拖拽/分片/断点续传，前端压缩生成封面，提交AI分析获取乒乓球轨迹、球速、落点、击球次数，提供自定义播放器支持倍速、逐帧、轨迹叠加播放。
+3.4.3、输入数据
+用户输入数据与有效性检验：
+视频文件：MP4/MOV格式，≤500MB，分辨率≥720P
+上传指令：开始/暂停/取消，校验文件格式与大小
+分析指令：提交分析、重新分析，校验视频状态
+数据来源表：
+视频表video：根据userId、videoId查询视频信息
+分析结果表analysis_result：根据videoId查询分析数据
+上传任务表upload_task：根据taskId查询上传进度
+3.4.4、输出数据
+视频信息： 视频ID、文件URL、封面URL、时长、格式
+AI分析结果： 轨迹数据、球速、落点热力图、击球次数
+播放数据： HLS播放地址、倍速配置、轨迹叠加图层
+表现形式： 上传进度条、视频播放器、数据面板、分析报告
+3.4.5、数据设计
+局部数据结构：
+相关数据库表：
+video：videoId, userId, fileUrl, coverUrl, duration, status, createTime
+analysis_result：resultId, videoId, trackData, ballSpeed, landingPoints, hitCount
+数据存储设计：
+视频文件：video/{userId}/{videoId}.mp4
+封面文件：cover/{videoId}.jpg
+均存储至阿里云OSS。
+3.4.6、算法和流程
+选择/拖拽视频，前端校验格式与大小
+获取OSS上传凭证，开启5MB分片上传
+支持断点续传，实时展示上传进度
+上传完成，生成封面，回调后端服务
+提交AI分析任务，GPU服务器处理
+分析完成，结果存入MongoDB
+前端获取数据，播放器叠加轨迹渲染
+3.4.7、函数说明
+getUploadToken：获取上传凭证
+参数：userId
+返回：OSS授权信息
+sliceUpload：分片上传
+参数：file, taskId
+返回：上传进度
+submitAnalyze：提交分析任务
+参数：videoId
+返回：任务ID与状态
+getAnalyzeResult：查询分析结果
+参数：videoId
+返回：轨迹、球速等
+customPlayer：自定义播放器
+参数：videoUrl, trackData
+返回：播放实例
+3.4.8、全局数据结构与该模块的关系
+全局用户ID：用于归属视频与权限校验
+全局上传任务队列：管理多视频上传状态
+全局分析任务列表：同步AI分析进度
+为数据可视化模块提供分析数据源
+3.5 模块3：数据可视化与训练报告模块
+3.5.1、设计图
+
+页面流程： Dashboard看板 → 训练日历 → 图表详情 → PDF导出
+3.5.2、功能描述
+通过ECharts图表展示训练时长、次数、排行榜，提供3D球路、落点热力图、趋势分析，支持数据下钻、训练补录、打卡统计与PDF训练报告导出。
+3.5.3、输入数据
+用户输入数据与有效性检验：
+日期范围：开始日期≤结束日期，格式YYYY-MM-DD
+筛选条件：按日/周/月筛选，非空
+补录数据：训练时长≥0，次数≥0，日期不重复
+数据来源表：
+训练统计表training_stat：根据userId、date查询统计数据
+分析结果表analysis_result：根据userId查询技术数据
+Redis缓存ranking：查询日/周/月排行榜
+3.5.4、输出数据
+统计数据： 总训练时长、次数、打卡天数、连续打卡
+图表数据： 3D轨迹图、落点热力图、柱状图/折线图
+训练报告： PDF文件，含数据汇总、图表、训练建议
+表现形式： Dashboard、日历视图、图表弹窗、PDF文件
+3.5.5、数据设计
+局部数据结构：
+相关数据库表：
+training_stat：statId, userId, trainDate, totalDuration, trainTimes, checkin
+数据存储设计：
+报告文件：report/{userId}_{date}.pdf，存储至OSS，PDF格式。
+3.5.6、算法和流程
+用户选择日期范围，请求统计数据
+后端聚合MySQL数据，Redis缓存热点数据
+前端渲染ECharts图表，支持响应式适配
+点击图表数据下钻，展示当日详细记录
+触发导出，前端生成PDF并下载
+训练数据更新，通过WebSocket实时刷新
+3.5.7、函数说明
+getTrainingStat：获取训练统计
+参数：userId, date
+返回：时长、次数、打卡
+renderChart：渲染图表
+参数：config, dom
+返回：图表实例
+dataDrill：数据下钻
+参数：date
+返回：当日详细数据
+exportPDF：导出PDF报告
+参数：userId, dateRange
+返回：文件流
+fillTrainingData：数据补录
+参数：userId, date, data
+返回：保存结果
+3.5.8、全局数据结构与该模块的关系
+全局用户ID：关联个人训练数据
+全局日期筛选器：统一全模块时间维度
+全局分析结果：提供图表核心数据
+为社交模块提供排行榜数据
+3.6 模块4：社交互动模块
+3.6.1、设计图
+
+流程： 发帖 → 评论 → 点赞 → 私信 → 通知 → 排行榜
+3.6.2、功能描述
+提供发帖/评论/点赞/关注社交功能，支持富文本编辑、实时IM私信、消息已读未读、训练打卡与排行榜，长列表采用虚拟滚动优化性能。
+3.6.3、输入数据
+用户输入数据与有效性检验：
+帖子内容：富文本，≤5000字符，XSS过滤
+评论内容：≤500字符，非空
+私信内容：≤1000字符，支持表情、图片
+打卡指令：每日仅可打卡1次
+数据来源表：
+帖子表post：查询帖子列表、详情
+评论表comment：根据postId查询评论
+消息表message：根据userId查询私信
+关注表follow：根据userId查询关注关系
+3.6.4、输出数据
+社交数据： 帖子列表、评论数、点赞数、关注状态
+消息数据： 私信列表、已读/未读状态、未读通知数
+排行榜： 日/周/月训练时长排名
+表现形式： 信息流、私信窗口、通知红点、排行榜单
+3.6.5、数据设计
+局部数据结构：
+相关数据库表：
+post：postId, userId, title, content, likeCount, commentCount
+message：msgId, fromUid, toUid, content, status, createTime
+缓存设计：
+Redis存储点赞、关注计数，提升访问速度。
+3.6.6、算法和流程
+用户编辑富文本，前端XSS过滤
+发布帖子/评论/私信，入库存储
+点赞/关注操作，Redis实时更新计数
+Socket.io推送实时消息与通知
+列表页虚拟滚动渲染，懒加载分页数据
+定时统计训练数据，更新排行榜
+3.6.7、函数说明
+publishPost：发布帖子
+参数：userId, content
+返回：postId
+sendMessage：发送私信
+参数：fromUid, toUid, content
+返回：msgId
+likeOperation：点赞/取消
+参数：targetId, type
+返回：最新计数
+getRanking：获取排行榜
+参数：type
+返回：排名列表
+virtualScroll：虚拟滚动渲染
+参数：list, page
+返回：渲染数据
+3.6.8、全局数据结构与该模块的关系
+全局用户信息：用于发帖、私信、点赞身份标识
+全局消息通知：控制全局红点提示
+全局训练数据：支撑排行榜计算
+关联LBS模块，支持球友社交互动
+3.7 模块5：LBS地理位置与约球模块
+3.7.1、设计图
+
+流程： 定位 → 模糊处理 → 附近球友/球馆 → 发布约球 → 报名/取消
+3.7.2、功能描述
+基于高德地图实现自动/手动定位，坐标模糊化保护隐私，展示附近球友/球馆，支持约球发布、报名、取消，提供地图/列表双视图。
+3.7.3、输入数据
+用户输入数据与有效性检验：
+定位权限：用户授权，拒绝则支持手动输入位置
+搜索半径：500米–5公里，步长500米
+约球信息：地点、时间、人数，非空，时间≥当前时间
+数据来源表：
+用户表user：根据location查询附近用户
+约球表match_apply：根据location、time查询约球
+球馆表gym：根据经纬度查询球馆信息
+3.7.4、输出数据
+位置数据： 模糊经纬度、地址、城市
+附近数据： 球友/球馆列表、距离、位置标记
+约球数据： 约球列表、报名状态、剩余名额
+表现形式： 高德地图、列表卡片、距离标签、报名按钮
+3.7.5、数据设计
+局部数据结构：
+相关数据库表：
+match_apply：matchId, userId, address, location, startTime, maxUsers, status
+缓存设计：
+Redis缓存附近球友/球馆数据，减少地图API调用。
+3.7.6、算法和流程
+用户授权定位，HTML5 Geolocation获取坐标
+前端偏移50–100米模糊化处理
+调用高德地图API，查询附近POI
+使用Haversine公式计算距离，排序展示
+发布约球，存储位置与时间信息
+用户报名/取消，更新名额与状态
+3.7.7、函数说明
+getLocation：获取定位
+参数：授权状态
+返回：模糊经纬度
+fuzzyLocation：坐标模糊化
+参数：lng, lat
+返回：偏移后坐标
+calcDistance：计算距离
+参数：两点经纬度
+返回：距离（米）
+publishMatch：发布约球
+参数：userId, matchInfo
+返回：matchId
+applyMatch：报名约球
+参数：matchId, userId
+返回：报名结果
+3.7.8、全局数据结构与该模块的关系
+全局用户定位：全模块位置基础数据
+全局用户ID：约球发布与报名身份标识
+全局社交关系：关联附近球友关注互动
+关联训练模块，支持线下约球训练打卡
+
+4 接口设计
+4.1 用户接口
+登录/注册页、个人中心、视频上传页、数据看板、社区页、地图约球页
+统一交互：按钮44×44px、响应式布局、快捷键支持、错误提示
+4.2 外部接口
+第三方登录：微信OAuth2.0
+存储服务：阿里云OSS SDK
+地图服务：高德地图JS API
+AI服务：OpenCV+TensorFlow接口
+4.3 内部接口
+4.3.1 接口规范
+协议：HTTPS、请求方式GET/POST/PUT/DELETE、数据格式JSON
+鉴权：Header携带Authorization:Bearer {Token}
+通用返回：code、message、data、timestamp
+4.3.2 核心接口示例
+
+5 数据库设计
+5.1 数据库选型
+MySQL8.0：结构化业务数据（用户、训练、社交、约球）
+MongoDB：视频元数据、分析结果、富文本
+Redis：缓存、会话、Token、限流、排行榜、实时消息
+阿里云OSS：视频、图片、封面、PDF
+5.2 核心数据表
+用户表user：userId、phone、email、password、nickname、avatar、role、status
+训练视频表video：videoId、userId、fileUrl、coverUrl、duration、status、createTime
+分析结果表analysis_result：resultId、videoId、trackData、ballSpeed、landingPoints
+训练统计表training_stat：statId、userId、trainDate、totalDuration、trainTimes
+社区帖子表post：postId、userId、title、content、likeCount、commentCount
+约球表match_apply：matchId、userId、address、location、startTime、maxUsers
+5.3 MongoDB集合
+video_meta：视频分片信息、分析中间状态
+user_behavior：用户行为日志、离线数据
+5.4 Redis键设计
+user:token:{token} → 用户信息
+video:upload:{taskId} → 上传进度
+limit:ip:{ip} → 限流计数
+ranking:daily → 日排行榜
+
+6 系统出错处理
+6.1 出错信息
+6.2 补救措施
+数据恢复：Redis缓存降级、MySQL主从切换
+服务重启：AI分析失败自动重试、WebSocket断连重连
+降级策略：地图失败→列表、分析繁忙→排队、弱网→基础功能
+
+7 其他设计
+7.1 安全设计
+XSS防护：DOMPurify、CSP、React自动转义
+CSRF防护：SameSite=Strict、双重Cookie
+文件安全：MIME白名单、Magic Number、病毒扫描
+密码加密：BCrypt、敏感数据AES-256加密
+隐私保护：定位模糊化、数据脱敏、一键注销
+7.2 性能优化设计
+前端：SSR/SSG、懒加载、压缩、缓存、虚拟滚动
+后端：Redis缓存、索引优化、批量查询
+媒体：CDN、HLS、首帧预加载
+性能指标：首屏LCP≤2.5秒、FID≤100ms
+7.3 高可用与容错设计
+前端：ErrorBoundary、ServiceWorker离线、自动重试
+上传：分片、断点续传、失败重传
+后端：限流、异步、故障隔离、服务降级
