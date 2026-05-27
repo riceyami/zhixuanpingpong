@@ -28,4 +28,24 @@ public interface UserService {
      * @return 新的令牌对
      */
     com.zhuxuan.dto.LoginResponse refreshToken(String refreshToken);
+
+    /**
+     * 获取个人资料
+     */
+    com.zhuxuan.dto.ProfileResponse getProfile(Long userId);
+
+    /**
+     * 更新昵称
+     */
+    com.zhuxuan.dto.ProfileResponse updateNickname(Long userId, String nickname);
+
+    /**
+     * 更新头像
+     */
+    com.zhuxuan.dto.ProfileResponse updateAvatar(Long userId, String avatarUrl);
+
+    /**
+     * 修改密码
+     */
+    void changePassword(Long userId, String oldPassword, String newPassword);
 }

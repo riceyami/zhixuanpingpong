@@ -1,9 +1,11 @@
 import api from '@/services/api';
 import type { Post, Comment, LikeResult, CreatePostRequest, AddCommentRequest, PageResponse } from '@/types';
 
-export const fetchPosts = async (page: number = 0, pageSize: number = 20) => {
+export const fetchPosts = async (page: number = 0, pageSize: number = 20, authorId?: number) => {
+  const params: Record<string, any> = { page, pageSize };
+  if (authorId !== undefined) params.authorId = authorId;
   const res = await api.get<{ code: number; message: string; data: PageResponse<Post> }>(
-    '/api/posts', { params: { page, pageSize } }
+    '/api/posts', { params }
   );
   return res.data.data;
 };

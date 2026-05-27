@@ -1,21 +1,16 @@
 package com.zhuxuan.service.impl;
 
-import com.zhuxuan.dto.LoginRequest;
-import com.zhuxuan.dto.LoginResponse;
-import com.zhuxuan.dto.RegisterRequest;
-import com.zhuxuan.dto.UserResponse;
+import com.zhuxuan.dto.*;
 import com.zhuxuan.entity.User;
+import com.zhuxuan.exception.BusinessException;
 import com.zhuxuan.repository.UserRepository;
 import com.zhuxuan.service.UserService;
 import com.zhuxuan.util.JwtUtils;
-import io.jsonwebtoken.Claims;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.BeanUtils;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-
-import java.util.Optional;
 
 /**
  * 用户业务实现类
@@ -31,23 +26,17 @@ public class UserServiceImpl implements UserService {
     @Override
     @Transactional
     public UserResponse register(RegisterRequest request) {
-        // ... (保持原有代码不变)
-        // 1. 校验手机号是否已存在
         if (userRepository.existsByPhone(request.getPhone())) {
-            throw new RuntimeException("该手机号已被注册");
+            throw BusinessException.badRequest("该手机号已被注册");
         }
 
-        // 2. 创建用户实体
         User user = new User();
         BeanUtils.copyProperties(request, user);
-        
-        // 3. 密码加密
+
         user.setPassword(passwordEncoder.encode(request.getPassword()));
-        
-        // 4. 保存到数据库
+
         User savedUser = userRepository.save(user);
 
-        // 5. 返回响应 DTO
         UserResponse response = new UserResponse();
         BeanUtils.copyProperties(savedUser, response);
         return response;
@@ -55,26 +44,21 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        // 1. 查找用户 (支持手机号或邮箱登录)
         User user = userRepository.findByPhone(request.getUsername())
                 .or(() -> userRepository.findByEmail(request.getUsername()))
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> BusinessException.notFound("用户不存在"));
 
-        // 2. 校验密码
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new RuntimeException("密码错误");
+            throw BusinessException.badRequest("密码错误");
         }
 
-        // 3. 校验账号状态
         if (user.getStatus() == 0) {
-            throw new RuntimeException("账号已被禁用");
+            throw BusinessException.badRequest("账号已被禁用");
         }
 
-        // 4. 生成 Token
         String accessToken = jwtUtils.generateAccessToken(user.getUserId(), String.valueOf(user.getRole()));
         String refreshToken = jwtUtils.generateRefreshToken(user.getUserId());
 
-        // 5. 封装响应
         UserResponse userResponse = new UserResponse();
         BeanUtils.copyProperties(user, userResponse);
 
@@ -88,12 +72,12 @@ public class UserServiceImpl implements UserService {
     @Override
     public LoginResponse refreshToken(String refreshToken) {
         if (!jwtUtils.validateToken(refreshToken)) {
-            throw new RuntimeException("RefreshToken 已过期或无效，请重新登录");
+            throw BusinessException.unauthorized("RefreshToken 已过期或无效，请重新登录");
         }
 
         Long userId = jwtUtils.getUserId(refreshToken);
         User user = userRepository.findById(userId)
-                .orElseThrow(() -> new RuntimeException("用户不存在"));
+                .orElseThrow(() -> BusinessException.notFound("用户不存在"));
 
         String newAccessToken = jwtUtils.generateAccessToken(user.getUserId(), String.valueOf(user.getRole()));
         String newRefreshToken = jwtUtils.generateRefreshToken(user.getUserId());
@@ -102,5 +86,60 @@ public class UserServiceImpl implements UserService {
                 .accessToken(newAccessToken)
                 .refreshToken(newRefreshToken)
                 .build();
+    }
+
+    @Override
+    public ProfileResponse getProfile(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> BusinessException.notFound("用户不存在"));
+        return toProfileResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public ProfileResponse updateNickname(Long userId, String nickname) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> BusinessException.notFound("用户不存在"));
+        user.setNickname(nickname);
+        userRepository.save(user);
+        return toProfileResponse(user);
+    }
+
+    @Override
+    @Transactional
+    public ProfileResponse updateAvatar(Long userId, String avatarUrl) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> BusinessException.notFound("用户不存在"));
+        user.setAvatar(avatarUrl);
+        userRepository.save(user);
+        return toProfileResponse(user);
+    }
+
+    private ProfileResponse toProfileResponse(User user) {
+        String phone = user.getPhone();
+        String phoneMasked = null;
+        if (phone != null && phone.length() >= 11) {
+            phoneMasked = phone.substring(0, 3) + "****" + phone.substring(7);
+        }
+        return ProfileResponse.builder()
+                .userId(user.getUserId())
+                .nickname(user.getNickname())
+                .avatar(user.getAvatar())
+                .phoneMasked(phoneMasked)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public void changePassword(Long userId, String oldPassword, String newPassword) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> BusinessException.notFound("用户不存在"));
+
+        if (!passwordEncoder.matches(oldPassword, user.getPassword())) {
+            throw BusinessException.badRequest("旧密码错误");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        userRepository.save(user);
     }
 }

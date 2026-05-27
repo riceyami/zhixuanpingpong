@@ -5,6 +5,7 @@ import com.zhuxuan.dto.AnalyzeResult;
 import com.zhuxuan.dto.OssPolicyResponse;
 import com.zhuxuan.dto.Result;
 import com.zhuxuan.entity.Video;
+import com.zhuxuan.exception.BusinessException;
 import com.zhuxuan.service.VideoService;
 import com.zhuxuan.service.impl.VideoAnalysisTask;
 import lombok.RequiredArgsConstructor;
@@ -28,13 +29,9 @@ public class VideoController {
      */
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            throw new RuntimeException("用户未认证");
-        }
+        if (authentication == null) throw BusinessException.unauthorized("用户未认证");
         Object principal = authentication.getPrincipal();
-        if (!(principal instanceof Long)) {
-            throw new RuntimeException("认证信息异常: principal 类型不匹配");
-        }
+        if (!(principal instanceof Long)) throw BusinessException.unauthorized("认证信息异常: principal 类型不匹配");
         return (Long) principal;
     }
 

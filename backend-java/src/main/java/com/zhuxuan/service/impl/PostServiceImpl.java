@@ -37,8 +37,12 @@ public class PostServiceImpl implements PostService {
     }
 
     @Override
-    public Page<PostDTO> getPostList(int page, int pageSize, Long userId) {
+    public Page<PostDTO> getPostList(int page, int pageSize, Long userId, Long authorId) {
         PageRequest pageRequest = PageRequest.of(page, pageSize, Sort.by(Sort.Direction.DESC, "createTime"));
+        if (authorId != null) {
+            return postRepository.findByUserIdAndStatusOrderByCreateTimeDesc(authorId, 1, pageRequest)
+                    .map(post -> toDTO(post, userId));
+        }
         return postRepository.findByStatusOrderByCreateTimeDesc(1, pageRequest)
                 .map(post -> toDTO(post, userId));
     }

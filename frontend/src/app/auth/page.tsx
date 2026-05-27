@@ -5,10 +5,13 @@ import { Form, Input, Button, Card, Tabs, message } from 'antd';
 import { UserOutlined, LockOutlined, PhoneOutlined } from '@ant-design/icons';
 import api from '@/services/api';
 import { useRouter } from 'next/navigation';
+import { fetchProfile } from '@/api/profile';
+import { useProfileStore } from '@/stores/profileStore';
 
 const AuthPage = () => {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const setProfile = useProfileStore((s) => s.setProfile);
 
   // 登录处理
   const onLogin = async (values: any) => {
@@ -25,10 +28,13 @@ const AuthPage = () => {
       localStorage.setItem('refreshToken', refreshToken);
       localStorage.setItem('userInfo', JSON.stringify(userInfo));
       
+      const profile = await fetchProfile();
+      setProfile(profile);
+      
       message.success('登录成功！');
       router.push('/dashboard');
     } catch (err: any) {
-      message.error(err.message || '登录失败');
+      message.error(err.response?.data?.message || err.message || '登录失败');
     } finally {
       setLoading(false);
     }

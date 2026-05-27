@@ -3,6 +3,7 @@ package com.zhuxuan.controller;
 import com.zhuxuan.dto.CreatePostRequest;
 import com.zhuxuan.dto.PostDTO;
 import com.zhuxuan.dto.Result;
+import com.zhuxuan.exception.BusinessException;
 import com.zhuxuan.service.PostService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -19,13 +20,9 @@ public class PostController {
 
     private Long getCurrentUserId() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null) {
-            throw new RuntimeException("用户未认证");
-        }
+        if (authentication == null) throw BusinessException.unauthorized("用户未认证");
         Object principal = authentication.getPrincipal();
-        if (!(principal instanceof Long)) {
-            throw new RuntimeException("认证信息异常");
-        }
+        if (!(principal instanceof Long)) throw BusinessException.unauthorized("认证信息异常");
         return (Long) principal;
     }
 
@@ -38,9 +35,10 @@ public class PostController {
     @GetMapping
     public Result<Page<PostDTO>> getPostList(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "20") int pageSize) {
+            @RequestParam(defaultValue = "20") int pageSize,
+            @RequestParam(required = false) Long authorId) {
         Long userId = getCurrentUserId();
-        return Result.success(postService.getPostList(page, pageSize, userId));
+        return Result.success(postService.getPostList(page, pageSize, userId, authorId));
     }
 
     @GetMapping("/{postId}")

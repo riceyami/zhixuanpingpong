@@ -1,32 +1,30 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { Typography, Button, Space } from 'antd';
+import React, { useState, useCallback } from 'react';
+import { Typography, Button, Space, message } from 'antd';
 import { PlusOutlined, TeamOutlined } from '@ant-design/icons';
 import PostList from '@/components/PostList';
 import PostDetail from '@/components/PostDetail';
 import CreatePostModal from '@/components/CreatePostModal';
-import type { User } from '@/types';
+import { useProfileStore } from '@/stores/profileStore';
+import { useSearchParams } from 'next/navigation';
 
 const { Title } = Typography;
 
 const SocialPage = () => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const searchParams = useSearchParams();
+  const { userId } = useProfileStore();
   const [detailPostId, setDetailPostId] = useState<number | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
 
-  useEffect(() => {
-    const stored = localStorage.getItem('userInfo');
-    if (stored) {
-      try { setCurrentUser(JSON.parse(stored)); } catch { /* ignore */ }
-    }
-  }, []);
+  const authorIdParam = searchParams.get('authorId');
+  const filterAuthorId = authorIdParam ? Number(authorIdParam) : undefined;
 
-  const handlePostClick = (postId: number) => {
+  const handlePostClick = useCallback((postId: number) => {
     setDetailPostId(postId);
     setDetailOpen(true);
-  };
+  }, []);
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -41,7 +39,8 @@ const SocialPage = () => {
       </div>
 
       <PostList
-        currentUserId={currentUser?.userId ?? 0}
+        currentUserId={userId}
+        authorId={filterAuthorId}
         onPostClick={handlePostClick}
       />
 

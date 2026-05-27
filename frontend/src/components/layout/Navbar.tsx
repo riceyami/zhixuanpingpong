@@ -1,40 +1,34 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Space } from 'antd';
-import { UserOutlined, VideoCameraOutlined, BarChartOutlined, HomeOutlined, LogoutOutlined, TeamOutlined } from '@ant-design/icons';
+import { UserOutlined, VideoCameraOutlined, HomeOutlined, LogoutOutlined, TeamOutlined, ProfileOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { User } from '@/types';
+import { useProfileStore } from '@/stores/profileStore';
 
 const { Header } = Layout;
 
 const Navbar = () => {
   const pathname = usePathname();
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
-
-  useEffect(() => {
-    // 监听本地存储变化或初始化加载
-    const storedUser = localStorage.getItem('userInfo');
-    if (storedUser) {
-      try {
-        setUser(JSON.parse(storedUser));
-      } catch (e) {
-        console.error('Failed to parse userInfo');
-      }
-    }
-  }, [pathname]); // 切换路由时重新检查登录状态
+  const { nickname, avatar, resetProfile } = useProfileStore();
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
     localStorage.removeItem('refreshToken');
     localStorage.removeItem('userInfo');
-    setUser(null);
+    resetProfile();
     router.push('/');
   };
 
   const userMenuItems = [
+    {
+      key: 'profile',
+      label: <Link href="/profile">个人主页</Link>,
+      icon: <ProfileOutlined />,
+    },
+    { type: 'divider' as const },
     {
       key: 'logout',
       label: '退出登录',
@@ -74,11 +68,11 @@ const Navbar = () => {
       </div>
 
       <div className="flex items-center">
-        {user ? (
+        {nickname ? (
           <Dropdown menu={{ items: userMenuItems }} placement="bottomRight">
             <Space className="cursor-pointer hover:bg-gray-50 px-2 py-1 rounded transition-colors">
-              <Avatar icon={<UserOutlined />} src={user.avatar} />
-              <span className="font-medium">{user.nickname}</span>
+              <Avatar icon={<UserOutlined />} src={avatar} />
+              <span className="font-medium">{nickname}</span>
             </Space>
           </Dropdown>
         ) : (

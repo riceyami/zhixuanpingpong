@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { Post } from '@/types';
+import type { Post } from '@/types';
 
 interface CommunityStore {
   posts: Post[];

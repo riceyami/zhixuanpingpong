@@ -4,7 +4,7 @@ import { useState, useCallback } from 'react';
 import { useCommunityStore } from '@/stores/communityStore';
 import { fetchPosts } from '@/api/community';
 
-export const usePosts = () => {
+export const usePosts = (authorId?: number) => {
   const { posts, totalPages, currentPage, setPosts, appendPosts } = useCommunityStore();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -13,7 +13,7 @@ export const usePosts = () => {
     setLoading(true);
     setError(null);
     try {
-      const data = await fetchPosts(page);
+      const data = await fetchPosts(page, 20, authorId);
       if (page === 0) {
         setPosts(data.content, data.totalPages, data.number);
       } else {
@@ -24,7 +24,7 @@ export const usePosts = () => {
     } finally {
       setLoading(false);
     }
-  }, [setPosts, appendPosts]);
+  }, [setPosts, appendPosts, authorId]);
 
   const refresh = useCallback(() => loadPosts(0), [loadPosts]);
   const loadMore = useCallback(

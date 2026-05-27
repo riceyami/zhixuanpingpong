@@ -7,11 +7,12 @@ import { usePosts } from '@/hooks/usePosts';
 
 interface PostListProps {
   currentUserId: number;
+  authorId?: number;
   onPostClick: (postId: number) => void;
 }
 
-const PostList: React.FC<PostListProps> = ({ currentUserId, onPostClick }) => {
-  const { posts, loading, error, hasMore, refresh, loadMore } = usePosts();
+const PostList: React.FC<PostListProps> = ({ currentUserId, authorId, onPostClick }) => {
+  const { posts, loading, error, hasMore, refresh, loadMore } = usePosts(authorId);
   const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {

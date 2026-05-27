@@ -9,4 +9,5 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByStatusOrderByCreateTimeDesc(Integer status, Pageable pageable);
+    Page<Post> findByUserIdAndStatusOrderByCreateTimeDesc(Long userId, Integer status, Pageable pageable);
 }
