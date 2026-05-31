@@ -9,6 +9,7 @@ import com.zhuxuan.exception.BusinessException;
 import com.zhuxuan.service.VideoService;
 import com.zhuxuan.service.impl.VideoAnalysisTask;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.*;
@@ -56,11 +57,16 @@ public class VideoController {
     }
 
     /**
-     * 获取当前用户的视频列表
+     * 获取当前用户的视频列表（支持可选分页，不传 page/size 则返回全部）
      */
     @GetMapping("/list")
-    public Result<List<Video>> getMyVideos() {
+    public Result<?> getMyVideos(
+            @RequestParam(required = false) Integer page,
+            @RequestParam(required = false) Integer size) {
         Long userId = getCurrentUserId();
+        if (page != null && size != null) {
+            return Result.success(videoService.getUserVideos(userId, page, size));
+        }
         return Result.success(videoService.getUserVideos(userId));
     }
 

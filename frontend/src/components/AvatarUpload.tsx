@@ -25,6 +25,7 @@ const AvatarUpload: React.FC = () => {
       formData.append('OSSAccessKeyId', policy.accessId);
       formData.append('signature', policy.signature);
       formData.append('success_action_status', '200');
+      formData.append('x-oss-object-acl', policy.acl);
       formData.append('file', file as File);
 
       await axios.post(policy.host, formData);

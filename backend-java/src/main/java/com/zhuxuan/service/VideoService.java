@@ -3,6 +3,7 @@ package com.zhuxuan.service;
 import com.zhuxuan.dto.AnalyzeResult;
 import com.zhuxuan.dto.OssPolicyResponse;
 import com.zhuxuan.entity.Video;
+import org.springframework.data.domain.Page;
 
 import java.util.List;
 
@@ -18,9 +19,14 @@ public interface VideoService {
     Video saveVideo(Video video);
 
     /**
-     * 获取用户的视频列表
+     * 获取用户的视频列表（全部）
      */
     List<Video> getUserVideos(Long userId);
+
+    /**
+     * 获取用户的视频列表（分页）
+     */
+    Page<Video> getUserVideos(Long userId, int page, int size);
 
     /**
      * 删除视频 (从 OSS 和数据库中删除)

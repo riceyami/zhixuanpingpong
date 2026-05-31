@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Layout, Menu, Button, Avatar, Dropdown, Space } from 'antd';
-import { UserOutlined, VideoCameraOutlined, HomeOutlined, LogoutOutlined, TeamOutlined, ProfileOutlined } from '@ant-design/icons';
+import { UserOutlined, VideoCameraOutlined, HomeOutlined, LogoutOutlined, TeamOutlined, ProfileOutlined, BarChartOutlined } from '@ant-design/icons';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useProfileStore } from '@/stores/profileStore';
@@ -47,6 +47,11 @@ const Navbar = () => {
       key: '/video',
       label: <Link href="/video">训练视频</Link>,
       icon: <VideoCameraOutlined />,
+    },
+    {
+      key: '/dashboard',
+      label: <Link href="/dashboard">数据看板</Link>,
+      icon: <BarChartOutlined />,
     },
     {
       key: '/social',
